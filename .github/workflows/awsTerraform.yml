@@ -1,0 +1,36 @@
+name: Branch-Driven EKS Lifecycle with Manual Review
+
+on:
+  push:
+    branches:
+      - 'feature/**'    # Triggers dev plan/apply
+      - develop        # Triggers qa plan/gated apply
+      - main           # Triggers prod plan/gated apply
+  pull_request:
+    types: [closed]
+    branches:
+      - 'feature/**'    # Triggers dev destroy upon PR merge
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: "us-east-1"
+
+jobs:
+  create-s3-bucket:
+    runs-on: ubuntu-latest
+    outputs:
+      env_name: ${{ steps.s3-vars.outputs.env_name }}
+      tf_action: ${{ steps.s3-vars.outputs.tf_action }}
+      should_run: ${{ steps.s3-vars.outputs.should_run }}
+    steps:
+      - name: Grab today's date and save it
+        id: s3-vars
+        run: |
+          # Format the date (e.g., 20261007)
+          CURRENT_DATE=$(date +'%Y%m%d')
+          echo "CURRENT_DATE [$CURRENT_DATE]"
+          echo "BUCKET_NAME [${{ vars.BUCKET_NAME }}]"
+          echo "${CURRENT_DATE}" >> $GITHUB_ENV
