@@ -31,7 +31,9 @@ jobs:
         run: |
           # Format the date (e.g., 20261007)
           CURRENT_DATE=$(date +'%Y%m%d')
+          TODAYS_NAME=${{ vars.BUCKET_NAME}}$CURRENT_DATE
           echo "CURRENT_DATE [$CURRENT_DATE]"
           echo "AWS_REGION [${{ vars.AWS_REGION }}]"
           echo "BUCKET_NAME [${{ vars.BUCKET_NAME }}]"
+          echo "TODAYS_NAME"
 #         echo "${CURRENT_DATE}" >> $GITHUB_ENV
