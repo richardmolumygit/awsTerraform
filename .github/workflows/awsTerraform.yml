@@ -35,5 +35,6 @@ jobs:
           echo "CURRENT_DATE [$CURRENT_DATE]"
           echo "AWS_REGION [${{ vars.AWS_REGION }}]"
           echo "BUCKET_NAME [${{ vars.BUCKET_NAME }}]"
-          echo "TODAYS_NAME"
-#         echo "${CURRENT_DATE}" >> $GITHUB_ENV
+          echo "TODAYS_NAME [$TODAYS_NAME]"
+          echo "TODAYS_BUCKET_NAME=$TODAYS_NAME" >> $GITHUB_OUTPUT
+          echo "AWS_REGION=${{ vars.AWS_REGION }}" >> $GITHUB_OUTPUT
