@@ -6,10 +6,10 @@ on:
       - 'feature/**'    # Triggers dev plan/apply
       - develop        # Triggers qa plan/gated apply
       - main           # Triggers prod plan/gated apply
-  pull_request:
-    types: [closed]
-    branches:
-      - 'feature/**'    # Triggers dev destroy upon PR merge
+# pull_request:
+#   types: [closed]
+#   branches:
+#     - 'feature/**'    # Triggers dev destroy upon PR merge
 
 permissions:
   id-token: write
