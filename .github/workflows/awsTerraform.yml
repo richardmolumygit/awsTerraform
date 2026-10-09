@@ -55,7 +55,7 @@ jobs:
 
   create-bucket:
     runs-on: ubuntu-latest
-    needs: set-vars
+    needs: s3-list-buckets
     outputs:
       env_name: ${{ steps.s3-vars.outputs.env_name }}
       tf_action: ${{ steps.s3-vars.outputs.tf_action }}
