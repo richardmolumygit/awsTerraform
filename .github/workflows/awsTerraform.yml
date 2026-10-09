@@ -46,6 +46,9 @@ jobs:
           aws-secret-access-key: ${{ vars.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ vars.AWS_REGION }}
 
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
       - &list_s3_buckets
         name: Show S3 buckets
         run: |
