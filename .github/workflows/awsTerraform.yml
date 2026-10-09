@@ -21,10 +21,6 @@ env:
 jobs:
   set-vars:
     runs-on: ubuntu-latest
-    outputs:
-      env_name: ${{ steps.s3-vars.outputs.env_name }}
-      tf_action: ${{ steps.s3-vars.outputs.tf_action }}
-      should_run: ${{ steps.s3-vars.outputs.should_run }}
     steps:
       - name: Grab today's date and save it
         id: s3-vars
@@ -56,10 +52,7 @@ jobs:
   create-bucket:
     runs-on: ubuntu-latest
     needs: s3-list-buckets
-    outputs:
       env_name: ${{ steps.s3-vars.outputs.env_name }}
-      tf_action: ${{ steps.s3-vars.outputs.tf_action }}
-      should_run: ${{ steps.s3-vars.outputs.should_run }}
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
