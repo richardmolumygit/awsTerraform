@@ -31,13 +31,13 @@ jobs:
         run: |
           # Format the date (e.g., 20261007)
           CURRENT_DATE=$(date +'%Y%m%d')
-          TODAYS_NAME="${{ vars.BUCKET_NAME}}-$CURRENT_DATE"
+          TODAYS_NAME="${{ vars.BUCKET_NAME }}-$CURRENT_DATE"
           echo "CURRENT_DATE [$CURRENT_DATE]"
           echo "AWS_REGION [${{ vars.AWS_REGION }}]"
           echo "BUCKET_NAME [${{ vars.BUCKET_NAME }}]"
           echo "TODAYS_NAME [$TODAYS_NAME]"
-          echo "TODAYS_BUCKET_NAME=$TODAYS_NAME" >> $GITHUB_OUTPUT
-          echo "AWS_REGION=${{ vars.AWS_REGION }}" >> $GITHUB_OUTPUT
+          echo "TODAYS_BUCKET_NAME=$TODAYS_NAME" >> "$GITHUB_OUTPUT"
+          echo "AWS_REGION=${{ vars.AWS_REGION }}" >> "$GITHUB_OUTPUT"
 
   s3-list-buckets:
     runs-on: ubuntu-latest
@@ -46,7 +46,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ vars.AWS_SECRET_ACCESS_KEY }}
@@ -65,11 +65,18 @@ jobs:
       tf_action: ${{ steps.s3-vars.outputs.tf_action }}
       should_run: ${{ steps.s3-vars.outputs.should_run }}
     steps:
-      - name: Show existing buckets
-        uses: 
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ vars.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
       - name: Grab today's date and save it
         id: s3-vars
         run: |
-          ls -l scripts/createS3Bucket.sh
-#          chmod +x ./scripts/createS3Bucket.sh
-#          ./scripts/createS3Bucket.sh
+          chmod +x ./scripts/createS3Bucket.sh
+          ./scripts/createS3Bucket.sh
