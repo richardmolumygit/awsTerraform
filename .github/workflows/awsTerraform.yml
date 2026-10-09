@@ -53,10 +53,7 @@ jobs:
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Show existing buckets
-        uses: aws-actions/aws-cli-action@v2
-        with:
-          aws-region: ${{ vars.AWS_REGION }}
-          args: s3 ls
+        run: aws s3 ls --region "$AWS_REGION"
 
   create-bucket:
     runs-on: ubuntu-latest
