@@ -39,6 +39,25 @@ jobs:
           echo "TODAYS_BUCKET_NAME=$TODAYS_NAME" >> $GITHUB_OUTPUT
           echo "AWS_REGION=${{ vars.AWS_REGION }}" >> $GITHUB_OUTPUT
 
+  s3-list-buckets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ vars.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Show existing buckets
+        uses: aws-actions/aws-cli-action@v2
+        with:
+          aws-region: ${{ vars.AWS_REGION }}
+          args: s3 ls
+
   create-bucket:
     runs-on: ubuntu-latest
     outputs:
@@ -46,7 +65,11 @@ jobs:
       tf_action: ${{ steps.s3-vars.outputs.tf_action }}
       should_run: ${{ steps.s3-vars.outputs.should_run }}
     steps:
+      - name: Show existing buckets
+        uses: 
       - name: Grab today's date and save it
         id: s3-vars
         run: |
-          ls -l
+          ls -l scripts/createS3Bucket.sh
+#          chmod +x ./scripts/createS3Bucket.sh
+#          ./scripts/createS3Bucket.sh
