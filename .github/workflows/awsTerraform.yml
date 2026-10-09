@@ -19,7 +19,7 @@ env:
   AWS_REGION: "us-east-1"
 
 jobs:
-  create-s3-bucket:
+  set-vars:
     runs-on: ubuntu-latest
     outputs:
       env_name: ${{ steps.s3-vars.outputs.env_name }}
@@ -31,10 +31,22 @@ jobs:
         run: |
           # Format the date (e.g., 20261007)
           CURRENT_DATE=$(date +'%Y%m%d')
-          TODAYS_NAME="${{ vars.BUCKET_NAME}}$CURRENT_DATE"
+          TODAYS_NAME="${{ vars.BUCKET_NAME}}-$CURRENT_DATE"
           echo "CURRENT_DATE [$CURRENT_DATE]"
           echo "AWS_REGION [${{ vars.AWS_REGION }}]"
           echo "BUCKET_NAME [${{ vars.BUCKET_NAME }}]"
           echo "TODAYS_NAME [$TODAYS_NAME]"
           echo "TODAYS_BUCKET_NAME=$TODAYS_NAME" >> $GITHUB_OUTPUT
           echo "AWS_REGION=${{ vars.AWS_REGION }}" >> $GITHUB_OUTPUT
+
+    create-bucket:
+    runs-on: ubuntu-latest
+    outputs:
+      env_name: ${{ steps.s3-vars.outputs.env_name }}
+      tf_action: ${{ steps.s3-vars.outputs.tf_action }}
+      should_run: ${{ steps.s3-vars.outputs.should_run }}
+    steps:
+      - name: Grab today's date and save it
+        id: s3-vars
+        run: |
+          ls -l
