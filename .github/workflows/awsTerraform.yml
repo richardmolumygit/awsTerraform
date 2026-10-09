@@ -35,7 +35,7 @@ jobs:
           echo "TODAYS_BUCKET_NAME=$TODAYS_NAME" >> "$GITHUB_OUTPUT"
           echo "AWS_REGION=${{ vars.AWS_REGION }}" >> "$GITHUB_OUTPUT"
 
-  s3-list-buckets:
+  s3-buckets:
     runs-on: ubuntu-latest
     needs: set-vars
     steps:
@@ -46,25 +46,36 @@ jobs:
           aws-secret-access-key: ${{ vars.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Show existing buckets
-        run: aws s3 ls --region "$AWS_REGION"
-
-  create-bucket:
-    runs-on: ubuntu-latest
-    needs: s3-list-buckets
-    steps:
-      - name: Checkout Source Code
-        uses: actions/checkout@v4
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ vars.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
+      - &list_s3_buckets
+        name: Show S3 buckets
+        run: |
+          echo "=== Fetching S3 Buckets for region: $AWS_REGION ==="
+          aws s3 ls --region "$AWS_REGION"
 
       - name: Create S3 Bucket
         id: s3-vars
         run: |
           chmod +x ./scripts/createS3Bucket.sh
           ./scripts/createS3Bucket.sh
+
+      - *list_s3_buckets
+
+# create-bucket:
+#   runs-on: ubuntu-latest
+#   needs: s3-list-buckets
+#   steps:
+#     - name: Checkout Source Code
+#       uses: actions/checkout@v4
+
+#     - name: Configure AWS Credentials
+#       uses: aws-actions/configure-aws-credentials@v4
+#       with:
+#         aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
+#         aws-secret-access-key: ${{ vars.AWS_SECRET_ACCESS_KEY }}
+#         aws-region: ${{ vars.AWS_REGION }}
+
+#     - name: Create S3 Bucket
+#       id: s3-vars
+#       run: |
+#         chmod +x ./scripts/createS3Bucket.sh
+#         ./scripts/createS3Bucket.sh
