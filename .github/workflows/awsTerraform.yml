@@ -52,7 +52,6 @@ jobs:
   create-bucket:
     runs-on: ubuntu-latest
     needs: s3-list-buckets
-      env_name: ${{ steps.s3-vars.outputs.env_name }}
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
