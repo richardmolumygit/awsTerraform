@@ -39,7 +39,7 @@ jobs:
           echo "TODAYS_BUCKET_NAME=$TODAYS_NAME" >> $GITHUB_OUTPUT
           echo "AWS_REGION=${{ vars.AWS_REGION }}" >> $GITHUB_OUTPUT
 
-    create-bucket:
+  create-bucket:
     runs-on: ubuntu-latest
     outputs:
       env_name: ${{ steps.s3-vars.outputs.env_name }}
