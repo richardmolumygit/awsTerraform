@@ -123,7 +123,8 @@ jobs:
             -backend-config="encrypt=true"
 
       - name: Terraform Plan
-        run: terraform plan -input=false -out=tfplan \
+        run: |
+          terraform plan -input=false -out=tfplan \
           -var="environment=$TF_ENVIRONMENT" \
           -var="aws_region=${{ vars.AWS_REGION }}"
 
@@ -226,6 +227,7 @@ jobs:
             -backend-config="encrypt=true"
 
       - name: Terraform Destroy
-        run: terraform destroy -auto-approve -input=false \
+        run: |
+          terraform destroy -auto-approve -input=false \
           -var="environment=$TF_ENVIRONMENT" \
           -var="aws_region=${{ vars.AWS_REGION }}"
