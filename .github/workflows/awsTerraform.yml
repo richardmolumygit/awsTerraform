@@ -55,7 +55,7 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      - name: Show S3 buckets after creation
+      - name: Show S3 buckets before creation
         run: |
           echo "=== Fetching S3 Buckets for region: $AWS_REGION ==="
           aws s3 ls --region "$AWS_REGION"
