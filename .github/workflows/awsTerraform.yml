@@ -31,12 +31,12 @@ on:
           - qa
           - prod
       confirm_deploy:
-        description: "Choose plan to request apply after reviewing the plan"
+        description: "Choose apply to request apply after reviewing the plan"
         required: true
         type: choice
         default: None
         options:
-          - plan
+          - apply
           - None
       confirm_destroy:
         description: "Choose destroy to remove the development environment"
@@ -169,7 +169,7 @@ jobs:
     runs-on: ubuntu-latest
     if: >-
       ${{ github.event_name == 'workflow_dispatch' &&
-          inputs.confirm_deploy == 'plan' &&
+          inputs.confirm_deploy == 'apply' &&
           inputs.confirm_destroy != 'destroy' }}
     environment:
       name: ${{ inputs.environment }}
@@ -217,7 +217,7 @@ jobs:
     if: >-
       ${{ github.event_name == 'workflow_dispatch' &&
           github.event.inputs.confirm_destroy == 'destroy' &&
-          inputs.confirm_deploy != 'plan' }}
+          inputs.confirm_deploy != 'apply' }}
     environment:
       name: ${{ inputs.environment }}
     env:
