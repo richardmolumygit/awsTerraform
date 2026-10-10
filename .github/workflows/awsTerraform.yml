@@ -17,6 +17,15 @@ on:
           - dev
           - qa
           - prod
+      confirm_deploy:
+        description: "Type GO to request apply after reviewing the plan"
+        required: true
+        default: "NO"
+      confirm_destroy:
+        description: "Type DO to remove the development environment"
+        required: true
+        default: "NO"
+
 # pull_request:
 #   types: [closed]
 #   branches:
@@ -76,3 +85,147 @@ jobs:
         run: |
           echo "=== Fetching S3 Buckets for region: $AWS_REGION ==="
           aws s3 ls --region "$AWS_REGION"
+
+
+  plan:
+    name: "Terraform init & Plan"
+    runs-on: ubuntu-latest
+    needs: s3-buckets
+    env:
+      TF_ENVIRONMENT: >-
+        ${{ inputs.environment ||
+            (github.ref_name == 'main' && 'prod') ||
+            (github.ref_name == 'develop' && 'qa') ||
+            'dev' }}
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ vars.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Terraform Init
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${{ vars.BUCKET_NAME }}" \
+            -backend-config="key=${TF_ENVIRONMENT}.terraform.tfstate" \
+            -backend-config="region=${{ vars.AWS_REGION }}" \
+            -backend-config="encrypt=true"
+
+      - name: Terraform Plan
+        run: terraform plan -input=false -out=tfplan \
+          -var="environment=$TF_ENVIRONMENT" \
+          -var="aws_region=${{ vars.AWS_REGION }}"
+
+      - name: Render Terraform Plan
+        run: |
+          terraform show -no-color tfplan > tfplan.txt
+          cat tfplan.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-${{ env.TF_ENVIRONMENT }}
+          path: |
+            tfplan
+            tfplan.txt
+          if-no-files-found: error
+
+  apply:
+    name: "Terraform Apply"
+    needs: plan
+    runs-on: ubuntu-latest
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' &&
+          inputs.confirm_deploy == 'GO' &&
+          inputs.confirm_destroy != 'DO' }}
+    environment:
+      name: ${{ inputs.environment }}
+    env:
+      TF_ENVIRONMENT: ${{ inputs.environment }}
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ vars.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Terraform Init
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${{ vars.BUCKET_NAME }}" \
+            -backend-config="key=${TF_ENVIRONMENT}.terraform.tfstate" \
+            -backend-config="region=${{ vars.AWS_REGION }}" \
+            -backend-config="encrypt=true"
+
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan-${{ env.TF_ENVIRONMENT }}
+          path: .
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve -input=false tfplan
+
+  destroy:
+    name: "Terraform Destroy"
+    needs: plan
+    runs-on: ubuntu-latest
+    # Only run when this is manual and confirm_destroy == 'DO'
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' &&
+          github.event.inputs.confirm_destroy == 'DO' &&
+          inputs.confirm_deploy != 'GO' }}
+    environment:
+      name: ${{ inputs.environment }}
+    env:
+      TF_ENVIRONMENT: ${{ inputs.environment }}
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ vars.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Terraform Init
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${{ vars.BUCKET_NAME }}" \
+            -backend-config="key=${TF_ENVIRONMENT}.terraform.tfstate" \
+            -backend-config="region=${{ vars.AWS_REGION }}" \
+            -backend-config="encrypt=true"
+
+      - name: Terraform Destroy
+        run: terraform destroy -auto-approve -input=false \
+          -var="environment=$TF_ENVIRONMENT" \
+          -var="aws_region=${{ vars.AWS_REGION }}"
