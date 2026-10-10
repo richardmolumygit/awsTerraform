@@ -112,7 +112,7 @@ jobs:
         with:
           aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ vars.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
+          aws-region: ${{ vars.IMAGE_AWS_REGION }}
 
       - name: Terraform Init
         run: |
@@ -126,7 +126,7 @@ jobs:
         run: |
           terraform plan -input=false -out=tfplan \
           -var="environment=$TF_ENVIRONMENT" \
-          -var="aws_region=${{ vars.AWS_REGION }}"
+          -var="aws_region=${{ vars.IMAGE_AWS_REGION }}"
 
       - name: Render Terraform Plan
         run: |
@@ -169,7 +169,7 @@ jobs:
         with:
           aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ vars.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
+          aws-region: ${{ vars.IMAGE_AWS_REGION }}
 
       - name: Terraform Init
         run: |
@@ -217,7 +217,7 @@ jobs:
         with:
           aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ vars.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
+          aws-region: ${{ vars.IMAGE_AWS_REGION }}
 
       - name: Terraform Init
         run: |
@@ -231,7 +231,7 @@ jobs:
         run: |
           terraform destroy -auto-approve -input=false \
           -var="environment=$TF_ENVIRONMENT" \
-          -var="aws_region=${{ vars.AWS_REGION }}"
+          -var="aws_region=${{ vars.IMAGE_AWS_REGION }}"
 
       - name: Empty and remove S3 bucket
         shell: bash
