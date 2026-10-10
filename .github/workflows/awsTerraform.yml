@@ -31,21 +31,21 @@ on:
           - qa
           - prod
       confirm_deploy:
-        description: "Type GO to request apply after reviewing the plan"
+        description: "Choose plan to request apply after reviewing the plan"
         required: true
         type: choice
         default: None
         options:
-          - GO
+          - plan
           - None
       confirm_destroy:
-        description: "Type DO to remove the development environment"
+        description: "Choose destroy to remove the development environment"
         required: true
         type: choice
         default: None
         options:
           - None
-          - DO
+          - destroy
 
 # pull_request:
 #   types: [closed]
@@ -169,8 +169,8 @@ jobs:
     runs-on: ubuntu-latest
     if: >-
       ${{ github.event_name == 'workflow_dispatch' &&
-          inputs.confirm_deploy == 'GO' &&
-          inputs.confirm_destroy != 'DO' }}
+          inputs.confirm_deploy == 'plan' &&
+          inputs.confirm_destroy != 'destroy' }}
     environment:
       name: ${{ inputs.environment }}
     env:
@@ -213,11 +213,11 @@ jobs:
     name: "Terraform Destroy"
     needs: plan
     runs-on: ubuntu-latest
-    # Only run when this is manual and confirm_destroy == 'DO'
+    # Only run when this is manual and confirm_destroy == 'destroy'
     if: >-
       ${{ github.event_name == 'workflow_dispatch' &&
-          github.event.inputs.confirm_destroy == 'DO' &&
-          inputs.confirm_deploy != 'GO' }}
+          github.event.inputs.confirm_destroy == 'destroy' &&
+          inputs.confirm_deploy != 'plan' }}
     environment:
       name: ${{ inputs.environment }}
     env:
