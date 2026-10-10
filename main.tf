@@ -19,7 +19,7 @@ provider "aws" {
 
 # Call your newly created custom module
 module "cluster_env" {
-  source = "./modules/awsEKs"
+  source = "./modules/awsEKS"
 
   environment = var.environment
   aws_region  = var.aws_region
