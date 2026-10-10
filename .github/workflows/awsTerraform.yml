@@ -222,7 +222,6 @@ jobs:
       name: ${{ inputs.environment }}
     env:
       TF_ENVIRONMENT: ${{ inputs.environment }}
-      BUCKET_NAME: ${{ vars.BUCKET_NAME }}
 
     steps:
       - name: Checkout Source Code
@@ -248,48 +247,32 @@ jobs:
             -backend-config="region=${{ vars.AWS_REGION }}" \
             -backend-config="encrypt=true"
 
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Remove workload namespace before cluster teardown
+        shell: bash
+        run: |
+          set -euo pipefail
+          cluster_name="${TF_ENVIRONMENT}-eks-cluster"
+
+          if ! aws eks describe-cluster \
+            --name "$cluster_name" \
+            --region "${{ vars.IMAGE_AWS_REGION }}" >/dev/null 2>&1; then
+            echo "Cluster '$cluster_name' is already absent; skipping namespace cleanup."
+            exit 0
+          fi
+
+          aws eks update-kubeconfig \
+            --name "$cluster_name" \
+            --region "${{ vars.IMAGE_AWS_REGION }}"
+          kubectl delete namespace "$TF_ENVIRONMENT" \
+            --ignore-not-found=true \
+            --wait=true \
+            --timeout=10m
+
       - name: Terraform Destroy
         run: |
           terraform destroy -auto-approve -input=false \
           -var="environment=$TF_ENVIRONMENT" \
           -var="aws_region=${{ vars.IMAGE_AWS_REGION }}"
-
-      - name: Empty and remove S3 bucket
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if ! aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
-            echo "S3 bucket '$BUCKET_NAME' does not exist; nothing to remove."
-            exit 0
-          fi
-
-          delete_entries() {
-            local entry_type="$1"
-            local query="{Objects: ${entry_type}[].{Key: Key, VersionId: VersionId}}"
-            local entries
-            entries=$(aws s3api list-object-versions \
-              --bucket "$BUCKET_NAME" \
-              --query "$query" \
-              --output json)
-
-            if [[ "$(jq '.Objects | length' <<< "$entries")" -eq 0 ]]; then
-              echo "No $entry_type to delete."
-              return
-            fi
-
-            jq -c '.Objects | range(0; length; 1000) as $start | {Objects: .[$start:$start + 1000]}' \
-              <<< "$entries" |
-              while IFS= read -r batch; do
-                aws s3api delete-objects \
-                  --bucket "$BUCKET_NAME" \
-                  --delete "$batch"
-              done
-          }
-
-          echo "Deleting object versions from '$BUCKET_NAME'..."
-          delete_entries Versions
-          echo "Deleting delete markers from '$BUCKET_NAME'..."
-          delete_entries DeleteMarkers
-          echo "Removing S3 bucket '$BUCKET_NAME'..."
-          aws s3 rb "s3://$BUCKET_NAME"
