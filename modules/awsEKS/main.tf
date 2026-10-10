@@ -9,6 +9,13 @@ module "vpc" {
   private_subnets = var.private_subnets
   public_subnets  = var.public_subnets
 
+  public_subnet_tags = {
+    "kubernetes.io/role/elb" = "1"
+  }
+  private_subnet_tags = {
+    "kubernetes.io/role/internal-elb" = "1"
+  }
+
   enable_nat_gateway = true
   single_nat_gateway = true # Keeps costs down for daily lifecycles
 }
@@ -37,6 +44,23 @@ module "eks" {
 
       instance_types = var.node_instance_types
       capacity_type  = "ON_DEMAND"
+    }
+  }
+}
+
+module "load_balancer_controller_irsa" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~> 5.0"
+
+  role_name                              = "${var.environment}-aws-load-balancer-controller"
+  attach_load_balancer_controller_policy = true
+
+  oidc_providers = {
+    eks = {
+      provider_arn = module.eks.oidc_provider_arn
+      namespace_service_accounts = [
+        "kube-system:aws-load-balancer-controller"
+      ]
     }
   }
 }
