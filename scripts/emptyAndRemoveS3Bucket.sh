@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-BUCKET_NAME="rich-molumby-s3-bucket-20261006"
+BUCKET_NAME="rich-molumby-s3-bucket-20261010"
 REGION="us-east-1"
 
 # Check if the bucket already exists
