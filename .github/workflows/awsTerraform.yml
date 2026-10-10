@@ -8,6 +8,15 @@ on:
       - main           # Triggers prod plan/gated apply
   workflow_dispatch:
     inputs:
+      branch:
+        description: Branch to  use
+        required: true
+        type: choice
+        default: feature/dev-only
+        options:
+          - feature/dev-only
+          - develop
+          - main
       environment:
         description: Environment to target
         required: true
