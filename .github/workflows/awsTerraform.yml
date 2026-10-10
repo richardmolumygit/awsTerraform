@@ -43,9 +43,6 @@ jobs:
           aws-secret-access-key: ${{ vars.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Checkout Source Code
-        uses: actions/checkout@v4
-
       - name: Show S3 buckets before creation
         run: |
           echo "=== Fetching S3 Buckets for region: $AWS_REGION ==="
@@ -58,33 +55,24 @@ jobs:
         run: |
           echo "Selected environment: $TARGET_ENVIRONMENT"
 
-      - name: Create S3 Bucket
-        id: s3-vars
+      - name: Ensure S3 Bucket Exists
         run: |
-          chmod +x ./scripts/createS3Bucket.sh
-          ./scripts/createS3Bucket.sh
+          if aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
+            echo "State bucket '$BUCKET_NAME' already exists."
+          else
+            echo "Creating S3 state bucket: $BUCKET_NAME..."
+            create_args=(--bucket "$BUCKET_NAME" --region "$AWS_REGION")
+            if [[ "$AWS_REGION" != "us-east-1" ]]; then
+              create_args+=(--create-bucket-configuration "LocationConstraint=$AWS_REGION")
+            fi
+            aws s3api create-bucket "${create_args[@]}"
+            aws s3api put-bucket-versioning --bucket "$BUCKET_NAME" \
+              --versioning-configuration Status=Enabled
+            echo "S3 bucket created and configured."
+          fi
+        shell: bash
 
       - name: Show S3 buckets after creation
         run: |
           echo "=== Fetching S3 Buckets for region: $AWS_REGION ==="
           aws s3 ls --region "$AWS_REGION"
-
-# create-bucket:
-#   runs-on: ubuntu-latest
-#   needs: s3-list-buckets
-#   steps:
-#     - name: Checkout Source Code
-#       uses: actions/checkout@v4
-
-#     - name: Configure AWS Credentials
-#       uses: aws-actions/configure-aws-credentials@v4
-#       with:
-#         aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
-#         aws-secret-access-key: ${{ vars.AWS_SECRET_ACCESS_KEY }}
-#         aws-region: ${{ vars.AWS_REGION }}
-
-#     - name: Create S3 Bucket
-#       id: s3-vars
-#       run: |
-#         chmod +x ./scripts/createS3Bucket.sh
-#         ./scripts/createS3Bucket.sh
