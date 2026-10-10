@@ -34,17 +34,17 @@ on:
         description: "Type GO to request apply after reviewing the plan"
         required: true
         type: choice
-        default: NO
+        default: None
         options:
           - GO
-          - NO
+          - None
       confirm_destroy:
         description: "Type DO to remove the development environment"
         required: true
         type: choice
-        default: NO
+        default: None
         options:
-          - NO
+          - None
           - DO
 
 # pull_request:
