@@ -209,6 +209,22 @@ jobs:
       - name: Terraform Apply
         run: terraform apply -auto-approve -input=false tfplan
 
+      - name: Initialize Load Balancer Controller state
+        run: |
+          terraform -chdir=addons/awsLoadBalancerController init -input=false \
+            -backend-config="bucket=${{ vars.BUCKET_NAME }}" \
+            -backend-config="key=addons/aws-load-balancer-controller/${TF_ENVIRONMENT}.terraform.tfstate" \
+            -backend-config="region=${{ vars.AWS_REGION }}" \
+            -backend-config="encrypt=true"
+
+      - name: Install Load Balancer Controller
+        run: |
+          terraform -chdir=addons/awsLoadBalancerController apply -auto-approve -input=false \
+            -var="environment=$TF_ENVIRONMENT" \
+            -var="aws_region=${{ vars.IMAGE_AWS_REGION }}" \
+            -var="state_bucket=${{ vars.BUCKET_NAME }}" \
+            -var="state_region=${{ vars.AWS_REGION }}"
+
   destroy:
     name: "Terraform Destroy"
     needs: plan
@@ -270,6 +286,29 @@ jobs:
             --ignore-not-found=true \
             --wait=true \
             --timeout=10m
+
+      - name: Remove Load Balancer Controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          cluster_name="${TF_ENVIRONMENT}-eks-cluster"
+
+          if aws eks describe-cluster \
+            --name "$cluster_name" \
+            --region "${{ vars.IMAGE_AWS_REGION }}" >/dev/null 2>&1; then
+            terraform -chdir=addons/awsLoadBalancerController init -input=false \
+              -backend-config="bucket=${{ vars.BUCKET_NAME }}" \
+              -backend-config="key=addons/aws-load-balancer-controller/${TF_ENVIRONMENT}.terraform.tfstate" \
+              -backend-config="region=${{ vars.AWS_REGION }}" \
+              -backend-config="encrypt=true"
+            terraform -chdir=addons/awsLoadBalancerController destroy -auto-approve -input=false \
+              -var="environment=$TF_ENVIRONMENT" \
+              -var="aws_region=${{ vars.IMAGE_AWS_REGION }}" \
+              -var="state_bucket=${{ vars.BUCKET_NAME }}" \
+              -var="state_region=${{ vars.AWS_REGION }}"
+          else
+            echo "Cluster '$cluster_name' is already absent; skipping controller uninstall."
+          fi
 
       - name: Terraform Destroy
         run: |
