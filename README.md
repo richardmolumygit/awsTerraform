@@ -11,3 +11,4 @@ awsS3 is the S3 bucket the cluster will use for the state files
 main.tf
 - This is where your CI/CD pipeline runs execution commands.
 - It sources the dynamic S3 backend and calls your local module using a relative directory path.
+
