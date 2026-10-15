@@ -14,7 +14,11 @@ variable "role_arn" {
   type = string
 }
 
+variable "external_dns_role_arn" {
+  type = string
+}
+
 variable "chart_version" {
   type    = string
-  default = "1.13.0"
+  default = "3.6.0"
 }

@@ -21,6 +21,51 @@ resource "helm_release" "this" {
           "eks.amazonaws.com/role-arn" = var.role_arn
         }
       }
+
+      controllerConfig = {
+        featureGates = {
+          EnableCertificateManagement = true
+        }
+      }
+    })
+  ]
+}
+
+resource "helm_release" "external_dns" {
+  name       = "external-dns"
+  repository = "https://kubernetes-sigs.github.io/external-dns/"
+  chart      = "external-dns"
+  version    = "1.23.0"
+  namespace  = "kube-system"
+
+  wait    = true
+  timeout = 600
+
+  values = [
+    yamlencode({
+      serviceAccount = {
+        create = true
+        name   = "external-dns"
+        annotations = {
+          "eks.amazonaws.com/role-arn" = var.external_dns_role_arn
+        }
+      }
+
+      sources          = ["ingress"]
+      provider         = { name = "aws" }
+      policy           = "upsert-only"
+      registry         = "txt"
+      txtOwnerId       = var.cluster_name
+      txtPrefix        = "external-dns-"
+      domainFilters    = ["sugarshacktreats.com"]
+      annotationFilter = "external-dns.kubernetes.io/hostname=app.sugarshacktreats.com"
+      extraArgs        = { "aws-zone-type" = "public" }
+      env = [
+        {
+          name  = "AWS_DEFAULT_REGION"
+          value = var.aws_region
+        }
+      ]
     })
   ]
 }

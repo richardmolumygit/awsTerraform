@@ -310,6 +310,21 @@ jobs:
             echo "Cluster '$cluster_name' is already absent; skipping controller uninstall."
           fi
 
+      - name: Ensure jq is installed
+        shell: bash
+        run: |
+          if ! command -v jq >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y jq
+          fi
+          jq --version
+
+      - name: Remove sandbox Route 53 records
+        shell: bash
+        env:
+          AWS_REGION: ${{ vars.IMAGE_AWS_REGION }}
+        run: bash scripts/cleanup-app-route53.sh cleanup
+
       - name: Terraform Destroy
         run: |
           terraform destroy -auto-approve -input=false \

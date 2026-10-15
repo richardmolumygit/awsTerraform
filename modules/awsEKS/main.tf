@@ -64,3 +64,127 @@ module "load_balancer_controller_irsa" {
     }
   }
 }
+
+resource "aws_iam_role_policy" "load_balancer_controller_certificate_management" {
+  name = "${var.environment}-load-balancer-controller-certificates"
+  role = module.load_balancer_controller_irsa.iam_role_name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "acm:AddTagsToCertificate",
+          "acm:DescribeCertificate",
+          "acm:ListCertificates",
+          "acm:ListTagsForCertificate"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["acm:RequestCertificate"]
+        Resource = "*"
+        Condition = {
+          Null = {
+            "aws:RequestTag/elbv2.k8s.aws/cluster" = "false"
+          }
+        }
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["acm:DeleteCertificate"]
+        Resource = "*"
+        Condition = {
+          Null = {
+            "aws:ResourceTag/elbv2.k8s.aws/cluster" = "false"
+          }
+        }
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["route53:ChangeResourceRecordSets"]
+        Resource = "arn:aws:route53:::hostedzone/*"
+        Condition = {
+          "ForAllValues:StringLike" = {
+            "route53:ChangeResourceRecordSetsNormalizedRecordNames" = ["*.app.sugarshacktreats.com"]
+          }
+        }
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "route53:ListHostedZones",
+          "route53:ListHostedZonesByName"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["route53:GetChange"]
+        Resource = "arn:aws:route53:::change/*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["route53:ListResourceRecordSets"]
+        Resource = "arn:aws:route53:::hostedzone/*"
+      }
+    ]
+  })
+}
+
+module "external_dns_irsa" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~> 5.0"
+
+  role_name = "${var.environment}-external-dns"
+
+  oidc_providers = {
+    eks = {
+      provider_arn = module.eks.oidc_provider_arn
+      namespace_service_accounts = [
+        "kube-system:external-dns"
+      ]
+    }
+  }
+}
+
+resource "aws_iam_role_policy" "external_dns_app_hostname" {
+  name = "${var.environment}-external-dns-app-hostname"
+  role = module.external_dns_irsa.iam_role_name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["route53:ChangeResourceRecordSets"]
+        Resource = "arn:aws:route53:::hostedzone/*"
+        Condition = {
+          "ForAllValues:StringLike" = {
+            "route53:ChangeResourceRecordSetsNormalizedRecordNames" = [
+              "app.sugarshacktreats.com",
+              "external-dns-app.sugarshacktreats.com"
+            ]
+            "route53:ChangeResourceRecordSetsActions"     = ["CREATE", "UPSERT"]
+            "route53:ChangeResourceRecordSetsRecordTypes" = ["A", "AAAA", "TXT"]
+          }
+        }
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["route53:ListHostedZones"]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "route53:ListResourceRecordSets",
+          "route53:ListTagsForResources"
+        ]
+        Resource = "arn:aws:route53:::hostedzone/*"
+      }
+    ]
+  })
+}
