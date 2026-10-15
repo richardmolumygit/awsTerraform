@@ -8,6 +8,19 @@ on:
       - main           # Triggers prod plan/gated apply
   workflow_dispatch:
     inputs:
+#
+#     GitHub does not allow changing the default branch in the 
+#       "Use workflow from" dropdown via workflow YAML configuration
+#
+#     branch:
+#       description: Branch to  use
+#       required: true
+#       type: choice
+#       default: feature/dev-only
+#       options:
+#         - feature/dev-only
+#         - develop
+#         - main
       environment:
         description: Environment to target
         required: true
@@ -18,13 +31,21 @@ on:
           - qa
           - prod
       confirm_deploy:
-        description: "Type GO to request apply after reviewing the plan"
+        description: "Choose apply to request apply after reviewing the plan"
         required: true
-        default: "NO"
+        type: choice
+        default: None
+        options:
+          - apply
+          - None
       confirm_destroy:
-        description: "Type DO to remove the development environment"
+        description: "Choose destroy to remove the development environment"
         required: true
-        default: "NO"
+        type: choice
+        default: None
+        options:
+          - None
+          - destroy
 
 # pull_request:
 #   types: [closed]
@@ -112,7 +133,7 @@ jobs:
         with:
           aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ vars.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
+          aws-region: ${{ vars.IMAGE_AWS_REGION }}
 
       - name: Terraform Init
         run: |
@@ -126,7 +147,7 @@ jobs:
         run: |
           terraform plan -input=false -out=tfplan \
           -var="environment=$TF_ENVIRONMENT" \
-          -var="aws_region=${{ vars.AWS_REGION }}"
+          -var="aws_region=${{ vars.IMAGE_AWS_REGION }}"
 
       - name: Render Terraform Plan
         run: |
@@ -148,8 +169,8 @@ jobs:
     runs-on: ubuntu-latest
     if: >-
       ${{ github.event_name == 'workflow_dispatch' &&
-          inputs.confirm_deploy == 'GO' &&
-          inputs.confirm_destroy != 'DO' }}
+          inputs.confirm_deploy == 'apply' &&
+          inputs.confirm_destroy != 'destroy' }}
     environment:
       name: ${{ inputs.environment }}
     env:
@@ -169,7 +190,7 @@ jobs:
         with:
           aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ vars.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
+          aws-region: ${{ vars.IMAGE_AWS_REGION }}
 
       - name: Terraform Init
         run: |
@@ -188,15 +209,31 @@ jobs:
       - name: Terraform Apply
         run: terraform apply -auto-approve -input=false tfplan
 
+      - name: Initialize Load Balancer Controller state
+        run: |
+          terraform -chdir=addons/awsLoadBalancerController init -input=false \
+            -backend-config="bucket=${{ vars.BUCKET_NAME }}" \
+            -backend-config="key=addons/aws-load-balancer-controller/${TF_ENVIRONMENT}.terraform.tfstate" \
+            -backend-config="region=${{ vars.AWS_REGION }}" \
+            -backend-config="encrypt=true"
+
+      - name: Install Load Balancer Controller
+        run: |
+          terraform -chdir=addons/awsLoadBalancerController apply -auto-approve -input=false \
+            -var="environment=$TF_ENVIRONMENT" \
+            -var="aws_region=${{ vars.IMAGE_AWS_REGION }}" \
+            -var="state_bucket=${{ vars.BUCKET_NAME }}" \
+            -var="state_region=${{ vars.AWS_REGION }}"
+
   destroy:
     name: "Terraform Destroy"
     needs: plan
     runs-on: ubuntu-latest
-    # Only run when this is manual and confirm_destroy == 'DO'
+    # Only run when this is manual and confirm_destroy == 'destroy'
     if: >-
       ${{ github.event_name == 'workflow_dispatch' &&
-          github.event.inputs.confirm_destroy == 'DO' &&
-          inputs.confirm_deploy != 'GO' }}
+          github.event.inputs.confirm_destroy == 'destroy' &&
+          inputs.confirm_deploy != 'apply' }}
     environment:
       name: ${{ inputs.environment }}
     env:
@@ -216,7 +253,7 @@ jobs:
         with:
           aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ vars.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
+          aws-region: ${{ vars.IMAGE_AWS_REGION }}
 
       - name: Terraform Init
         run: |
@@ -226,8 +263,55 @@ jobs:
             -backend-config="region=${{ vars.AWS_REGION }}" \
             -backend-config="encrypt=true"
 
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Remove workload namespace before cluster teardown
+        shell: bash
+        run: |
+          set -euo pipefail
+          cluster_name="${TF_ENVIRONMENT}-eks-cluster"
+
+          if ! aws eks describe-cluster \
+            --name "$cluster_name" \
+            --region "${{ vars.IMAGE_AWS_REGION }}" >/dev/null 2>&1; then
+            echo "Cluster '$cluster_name' is already absent; skipping namespace cleanup."
+            exit 0
+          fi
+
+          aws eks update-kubeconfig \
+            --name "$cluster_name" \
+            --region "${{ vars.IMAGE_AWS_REGION }}"
+          kubectl delete namespace "$TF_ENVIRONMENT" \
+            --ignore-not-found=true \
+            --wait=true \
+            --timeout=10m
+
+      - name: Remove Load Balancer Controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          cluster_name="${TF_ENVIRONMENT}-eks-cluster"
+
+          if aws eks describe-cluster \
+            --name "$cluster_name" \
+            --region "${{ vars.IMAGE_AWS_REGION }}" >/dev/null 2>&1; then
+            terraform -chdir=addons/awsLoadBalancerController init -input=false \
+              -backend-config="bucket=${{ vars.BUCKET_NAME }}" \
+              -backend-config="key=addons/aws-load-balancer-controller/${TF_ENVIRONMENT}.terraform.tfstate" \
+              -backend-config="region=${{ vars.AWS_REGION }}" \
+              -backend-config="encrypt=true"
+            terraform -chdir=addons/awsLoadBalancerController destroy -auto-approve -input=false \
+              -var="environment=$TF_ENVIRONMENT" \
+              -var="aws_region=${{ vars.IMAGE_AWS_REGION }}" \
+              -var="state_bucket=${{ vars.BUCKET_NAME }}" \
+              -var="state_region=${{ vars.AWS_REGION }}"
+          else
+            echo "Cluster '$cluster_name' is already absent; skipping controller uninstall."
+          fi
+
       - name: Terraform Destroy
         run: |
           terraform destroy -auto-approve -input=false \
           -var="environment=$TF_ENVIRONMENT" \
-          -var="aws_region=${{ vars.AWS_REGION }}"
+          -var="aws_region=${{ vars.IMAGE_AWS_REGION }}"
