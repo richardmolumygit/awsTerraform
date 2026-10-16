@@ -15,7 +15,7 @@ variable "public_subnets" {
 }
 variable "kubernetes_version" {
   type    = string
-  default = "1.31"
+  default = "1.37"
 }
 variable "node_instance_types" {
   type    = list(string)
