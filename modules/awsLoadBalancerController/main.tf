@@ -32,6 +32,7 @@ resource "helm_release" "this" {
 }
 
 resource "helm_release" "external_dns" {
+  count      = var.external_dns_role_arn == "" ? 0 : 1
   name       = "external-dns"
   repository = "https://kubernetes-sigs.github.io/external-dns/"
   chart      = "external-dns"

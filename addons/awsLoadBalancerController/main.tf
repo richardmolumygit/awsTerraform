@@ -57,5 +57,5 @@ module "controller" {
   aws_region            = var.aws_region
   vpc_id                = data.aws_eks_cluster.this.vpc_config[0].vpc_id
   role_arn              = data.terraform_remote_state.cluster.outputs.load_balancer_controller_role_arn
-  external_dns_role_arn = data.terraform_remote_state.cluster.outputs.external_dns_role_arn
+  external_dns_role_arn = try(data.terraform_remote_state.cluster.outputs.external_dns_role_arn, "")
 }
